@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>排休月曆</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700&display=swap">
+<style>
+  html{color-scheme:light dark}
+  :root{
+    --bg:#F5F6F8; --surface:#FFFFFF; --surface2:#EDEFF3; --ink:#1B2430;
+    --muted:#66707E; --dim:#A9B0BC; --line:#E2E5EB; --line2:#D3D7E0;
+    --accent:#2F5BEA; --accent-soft:rgba(47,91,234,.09); --accent-ink:#FFFFFF;
+    --danger:#C43B3B; --sun:#C05252;
+    --p1:#C9184A; --p2:#B45309; --p3:#047857; --p4:#0369A1; --p5:#6D28D9; --p6:#A21CAF;
+    --warn-bg:#FFF4CC; --crit-bg:#FFDFDF;
+    --shadow:0 18px 48px rgba(20,28,45,.16);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#11141A; --surface:#1A1E26; --surface2:#232936; --ink:#E8EBF1;
+      --muted:#98A1B0; --dim:#5C6674; --line:#2A3140; --line2:#343C4E;
+      --accent:#6C8CFF; --accent-soft:rgba(108,140,255,.13); --accent-ink:#0F1524;
+      --danger:#F08585; --sun:#E58A8A;
+      --p1:#FF6B95; --p2:#F0A32E; --p3:#34D399; --p4:#38BDF8; --p5:#A78BFA; --p6:#E879F9;
+      --warn-bg:#3B3416; --crit-bg:#46201F;
+      --shadow:0 18px 48px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#11141A; --surface:#1A1E26; --surface2:#232936; --ink:#E8EBF1;
+    --muted:#98A1B0; --dim:#5C6674; --line:#2A3140; --line2:#343C4E;
+    --accent:#6C8CFF; --accent-soft:rgba(108,140,255,.13); --accent-ink:#0F1524;
+    --danger:#F08585; --sun:#E58A8A;
+    --p1:#FF6B95; --p2:#F0A32E; --p3:#34D399; --p4:#38BDF8; --p5:#A78BFA; --p6:#E879F9;
+    --warn-bg:#3B3416; --crit-bg:#46201F;
+    --shadow:0 18px 48px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%}
+  button{font-family:inherit}
+  .num{font-family:"Outfit","Noto Sans TC",sans-serif; font-variant-numeric:tabular-nums}
+
+  .app{max-width:1080px; margin:0 auto; padding:28px 20px 56px}
+
+  /* ── header ── */
+  header{display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px; margin-bottom:6px}
+  .brand h1{margin:0; font-size:26px; font-weight:900; letter-spacing:.06em; text-wrap:balance}
+  .brand p{margin:2px 0 0; color:var(--muted); font-size:13px}
+  .sync{display:inline-flex; align-items:center; gap:6px; margin-left:10px; vertical-align:2px;
+    font-size:11.5px; color:var(--muted); background:var(--surface2); border-radius:999px; padding:3px 10px}
+  .sync i{width:7px; height:7px; border-radius:50%; background:var(--dim)}
+  .sync.ok i{background:var(--p3)} .sync.local i{background:var(--p2)}
+
+  .monthnav{margin-left:auto; display:flex; align-items:center; gap:8px; position:relative}
+  .monthnav .label{
+    font-size:20px; font-weight:700; letter-spacing:.04em; min-width:132px; text-align:center;
+    border:none; background:transparent; color:var(--ink); cursor:pointer;
+    padding:4px 10px; border-radius:10px; transition:background .15s;
+  }
+  .monthnav .label:hover{background:var(--surface2)}
+  .monthnav .label::after{content:"▾"; font-size:12px; margin-left:6px; color:var(--muted)}
+  .monthnav .label:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .mpick{
+    position:absolute; top:calc(100% + 8px); right:0; z-index:40; width:264px;
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    box-shadow:var(--shadow); padding:14px;
+  }
+  .mp-year{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+  .mp-year span{font-size:17px; font-weight:700; letter-spacing:.04em}
+  .mp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:6px}
+  .mp-grid button{
+    padding:9px 0; border:none; border-radius:10px; background:transparent; color:var(--ink);
+    font-size:13.5px; font-weight:500; cursor:pointer; transition:background .12s;
+  }
+  .mp-grid button:hover{background:var(--surface2)}
+  .mp-grid button.cur{background:var(--accent); color:var(--accent-ink); font-weight:700}
+  .mp-grid button.now{box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .mp-grid button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .navbtn{
+    width:36px; height:36px; border-radius:10px; border:1px solid var(--line2);
+    background:var(--surface); color:var(--ink); font-size:18px; cursor:pointer; line-height:1;
+    transition:background .15s;
+  }
+  .navbtn:hover{background:var(--surface2)}
+  .todaybtn{
+    height:36px; padding:0 14px; border-radius:10px; border:1px solid var(--line2);
+    background:var(--surface); color:var(--ink); font-size:13.5px; font-weight:500; cursor:pointer;
+  }
+  .todaybtn:hover{background:var(--surface2)}
+  .navbtn:focus-visible,.todaybtn:focus-visible,.chip-x:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  #banner{margin:14px 0 0; padding:10px 14px; border-radius:12px; font-size:13px;
+    background:var(--accent-soft); color:var(--ink); border:1px dashed var(--line2)}
+
+  /* ── legend ── */
+  .legend{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 14px}
+  .person{
+    display:flex; align-items:baseline; gap:8px; padding:7px 13px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--line); font-size:13.5px;
+  }
+  .person .dot{width:9px; height:9px; border-radius:50%; align-self:center; flex:none}
+  .person b{font-weight:700}
+  .person .cnt{color:var(--muted); font-size:12px}
+  .person .cnt em{font-style:normal; font-weight:600; color:var(--ink)}
+
+  /* ── calendar ── */
+  .cal{background:var(--surface); border:1px solid var(--line); border-radius:18px; overflow:hidden}
+  .weekdays{display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--line); background:var(--surface)}
+  .weekdays span{padding:10px 0 8px; text-align:center; font-size:12px; letter-spacing:.35em; text-indent:.35em; color:var(--muted); font-weight:500}
+  .weekdays span:first-child, .weekdays span:last-child{color:var(--sun)}
+  .grid{display:grid; grid-template-columns:repeat(7,1fr)}
+  .day{
+    min-height:104px; padding:8px 7px 9px; border-top:1px solid var(--line); border-left:1px solid var(--line);
+    cursor:pointer; display:flex; flex-direction:column; gap:5px; background:var(--surface);
+    transition:background .12s;
+  }
+  .grid .day:nth-child(7n+1){border-left:none}
+  .grid .day:nth-child(-n+7){border-top:none}
+  .day:hover{background:var(--surface2)}
+  .day.out{background:transparent; cursor:pointer}
+  .day.out .dnum{color:var(--dim)}
+  .dnum{font-size:13.5px; font-weight:600; color:var(--ink); width:26px; height:26px;
+    display:flex; align-items:center; justify-content:center; border-radius:50%}
+  .day.sun .dnum, .day.sat .dnum{color:var(--sun)}
+  .day.out.sun .dnum,.day.out.sat .dnum{color:var(--dim)}
+  .day.today .dnum{background:var(--accent); color:var(--accent-ink); font-weight:700}
+  .day.warn, .day.warn.out{background:var(--warn-bg)}
+  .day.crit, .day.crit.out{background:var(--crit-bg)}
+  .day.warn:hover{background:color-mix(in srgb, var(--warn-bg) 90%, var(--ink))}
+  .day.crit:hover{background:color-mix(in srgb, var(--crit-bg) 90%, var(--ink))}
+  .chips{display:flex; flex-direction:column; gap:3px; overflow:hidden}
+  .chip{
+    display:flex; align-items:center; gap:5px; padding:2.5px 7px; border-radius:7px;
+    font-size:12px; line-height:1.35; white-space:nowrap; overflow:hidden;
+  }
+  .chip .cdot{width:6px; height:6px; border-radius:50%; flex:none}
+  .chip b{font-weight:600}
+  .chip small{font-size:10.5px; opacity:.75; overflow:hidden; text-overflow:ellipsis}
+  .more{font-size:11px; color:var(--muted); padding-left:4px}
+
+  /* ── modal ── */
+  [hidden]{display:none!important}
+  .overlay{
+    position:fixed; inset:0; background:rgba(15,19,28,.45); backdrop-filter:blur(3px);
+    display:flex; align-items:center; justify-content:center; padding:18px; z-index:50;
+  }
+  .modal{
+    width:100%; max-width:420px; max-height:88vh; overflow-y:auto;
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    box-shadow:var(--shadow); padding:22px 22px 24px;
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .modal{animation:pop .18s ease-out}
+    @keyframes pop{from{transform:translateY(10px); opacity:0}to{transform:none; opacity:1}}
+  }
+  .m-head{display:flex; align-items:baseline; gap:10px; margin-bottom:4px}
+  .m-head h2{margin:0; font-size:18px; font-weight:900; letter-spacing:.04em}
+  .m-head .wd{color:var(--muted); font-size:13px}
+  .m-close{margin-left:auto; width:30px; height:30px; border-radius:9px; border:none;
+    background:var(--surface2); color:var(--muted); font-size:15px; cursor:pointer}
+  .m-close:hover{color:var(--ink)}
+
+  .m-list{margin:14px 0 0; display:flex; flex-direction:column; gap:6px}
+  .m-empty{color:var(--dim); font-size:13px; margin:14px 0 0}
+  .entry{
+    display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:11px;
+    background:var(--surface2); font-size:13.5px;
+  }
+  .entry .cdot{width:8px; height:8px; border-radius:50%; flex:none}
+  .entry b{font-weight:700}
+  .entry .tag{font-size:11.5px; padding:1px 8px; border-radius:999px; font-weight:500}
+  .entry .range{margin-left:auto; color:var(--muted); font-size:11.5px; white-space:nowrap}
+  .chip-x{
+    flex:none; border:none; background:transparent; color:var(--dim); cursor:pointer;
+    font-size:13px; padding:3px 6px; border-radius:7px;
+  }
+  .chip-x:hover{color:var(--danger); background:var(--surface)}
+  .chip-x.armed{background:var(--danger); color:#fff; font-size:11.5px; font-weight:600}
+  .entry{flex-wrap:wrap}
+  .del-opts{width:100%; display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; padding-top:6px}
+  .mini-btn{
+    padding:4px 10px; border-radius:8px; font-size:12px; font-weight:500; cursor:pointer;
+    border:1px solid var(--line2); background:var(--surface); color:var(--ink);
+  }
+  .mini-btn:hover{background:var(--surface2)}
+  .mini-btn.dangerous{background:var(--danger); border-color:var(--danger); color:#fff}
+  .mini-btn.dangerous:hover{filter:brightness(1.08); background:var(--danger)}
+  .mini-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .m-divider{margin:18px 0 14px; border:none; border-top:1px solid var(--line)}
+  .f-label{display:block; font-size:11.5px; font-weight:700; letter-spacing:.14em; color:var(--muted); margin:13px 0 5px}
+  select,input[type="date"],input[type="text"]{
+    width:100%; padding:9px 12px; border-radius:11px; border:1px solid var(--line2);
+    background:var(--surface); color:var(--ink); font-size:14px; font-family:inherit;
+  }
+  select:focus,input:focus{outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent}
+  input[type="date"]{color-scheme:light dark}
+  .seg{display:grid; grid-template-columns:1fr 1fr; gap:4px; background:var(--surface2); padding:4px; border-radius:11px}
+  .seg button{
+    padding:7px 0; border:none; border-radius:8px; background:transparent; color:var(--muted);
+    font-size:13.5px; font-weight:500; cursor:pointer;
+  }
+  .seg button.on{background:var(--surface); color:var(--ink); font-weight:700; box-shadow:0 1px 4px rgba(15,20,35,.12)}
+  .dates{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .dates.single{grid-template-columns:1fr}
+  .f-err{color:var(--danger); font-size:12.5px; margin:10px 0 0; min-height:0}
+  .submit{
+    width:100%; margin-top:16px; padding:12px 0; border:none; border-radius:12px;
+    background:var(--accent); color:var(--accent-ink); font-size:15px; font-weight:700;
+    letter-spacing:.14em; cursor:pointer; transition:filter .15s;
+  }
+  .submit:hover{filter:brightness(1.08)}
+  .submit:disabled{opacity:.5; cursor:default}
+
+  @media (max-width:640px){
+    .app{padding:18px 10px 40px}
+    header{align-items:center}
+    .brand h1{font-size:21px}
+    .brand p{display:none}
+    .monthnav .label{font-size:16px; min-width:104px}
+    .day{min-height:78px; padding:5px 4px 6px}
+    .chip{padding:2px 5px; font-size:10.5px; gap:4px}
+    .chip small{display:none}
+    .person{padding:5px 10px; font-size:12.5px}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>排休月曆<span class="sync" id="sync"><i></i><span id="syncTxt">載入中…</span></span></h1>
+      <p>點選日期即可查看與安排當天排休</p>
+    </div>
+    <div class="monthnav">
+      <button class="navbtn" id="prevBtn" aria-label="上個月">‹</button>
+      <button class="label num" id="mLabel" aria-haspopup="true" aria-expanded="false" title="選擇年月"></button>
+      <button class="navbtn" id="nextBtn" aria-label="下個月">›</button>
+      <button class="todaybtn" id="todayBtn">今天</button>
+      <div class="mpick" id="mpick" hidden>
+        <div class="mp-year">
+          <button class="navbtn" id="mpPrev" aria-label="前一年">‹</button>
+          <span class="num" id="mpYear"></span>
+          <button class="navbtn" id="mpNext" aria-label="後一年">›</button>
+        </div>
+        <div class="mp-grid" id="mpGrid"></div>
+      </div>
+    </div>
+  </header>
+
+  <div id="banner" hidden>此環境無法使用瀏覽器儲存空間 — 新增的排休只會暫存於此頁面，重新整理後會消失。請下載檔案後用瀏覽器開啟。</div>
+
+  <section class="legend" id="legend" aria-label="本月排休統計"></section>
+
+  <div class="cal">
+    <div class="weekdays">
+      <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="m-head">
+      <h2 id="mTitle"></h2><span class="wd" id="mWd"></span>
+      <button class="m-close" id="mClose" aria-label="關閉">✕</button>
+    </div>
+    <div id="mList" class="m-list"></div>
+    <hr class="m-divider">
+    <label class="f-label" for="fName">姓名</label>
+    <select id="fName">
+      <option value="" selected disabled>請選擇姓名</option>
+    </select>
+    <label class="f-label" for="fType">假別</label>
+    <select id="fType">
+      <option value="年假">年假</option>
+      <option value="OFF">OFF</option>
+      <option value="公假">公假</option>
+      <option value="補休息日">補休息日（星期六）</option>
+      <option value="補例假日">補例假日（星期日）</option>
+      <option value="__custom">自訂假別…</option>
+    </select>
+    <input type="text" id="fCustom" placeholder="輸入假別名稱（例如：補休）" maxlength="10" hidden style="margin-top:8px">
+    <div id="compWrap" hidden>
+      <label class="f-label" for="fComp" id="compLabel">補的日期</label>
+      <input type="date" id="fComp">
+    </div>
+    <label class="f-label">日期</label>
+    <div class="seg" role="tablist">
+      <button id="segSingle" class="on">單日</button>
+      <button id="segRange">區間</button>
+    </div>
+    <div class="dates single" id="dates" style="margin-top:8px">
+      <input type="date" id="fStart" aria-label="開始日期">
+      <input type="date" id="fEnd" aria-label="結束日期" hidden>
+    </div>
+    <p class="f-err" id="fErr"></p>
+    <button class="submit" id="fSubmit">新增排休</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var PEOPLE = ["陳乃菁","吳曉琪","余守純","蘇婉淳","楊穎潔","林佩穎"];
+  var PCOLOR = ["--p1","--p2","--p3","--p4","--p5","--p6"];
+  var WD = ["日","一","二","三","四","五","六"];
+  var COMP = { "補休息日": {wd:6, short:"補休"}, "補例假日": {wd:0, short:"補例"} };
+  function compShort(e){
+    if (!e.compDate || !COMP[e.type]) return null;
+    var d = parseKey(e.compDate);
+    return COMP[e.type].short + " " + (d.getMonth()+1) + "/" + d.getDate();
+  }
+
+  var STORE_KEY = "leave-calendar-entries-v1";
+  var entries = {};          // id -> {name, type, start, end}
+  var storageOK = false;
+  var today = new Date();
+  var view = { y: today.getFullYear(), m: today.getMonth() };  // m: 0-11
+  var openDate = null;       // "YYYY-MM-DD" of open modal
+  var rangeMode = false;
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  function pad(n){ return (n<10?"0":"")+n; }
+  function key(y,m,d){ return y+"-"+pad(m+1)+"-"+pad(d); }
+  function parseKey(k){ var p=k.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function colorOf(name){
+    var i = PEOPLE.indexOf(name);
+    return "var(" + PCOLOR[i>=0? i : 0] + ")";
+  }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // ── day map: "YYYY-MM-DD" -> [{id, name, type, start, end}] ──
+  function buildDayMap(){
+    var map = {};
+    Object.keys(entries).forEach(function(id){
+      var e = entries[id];
+      if (!e || !e.start) return;
+      var d = parseKey(e.start), end = parseKey(e.end || e.start), guard = 0;
+      while (d <= end && guard++ < 90){
+        var k = key(d.getFullYear(), d.getMonth(), d.getDate());
+        (map[k] = map[k] || []).push({id:id, name:e.name, type:e.type, compDate:e.compDate||null, start:e.start, end:e.end||e.start});
+        d.setDate(d.getDate()+1);
+      }
+    });
+    Object.keys(map).forEach(function(k){
+      map[k].sort(function(a,b){ return PEOPLE.indexOf(a.name) - PEOPLE.indexOf(b.name); });
+    });
+    return map;
+  }
+
+  // ── render ──
+  function render(){
+    var dayMap = buildDayMap();
+    $("mLabel").textContent = view.y + "年 " + (view.m+1) + "月";
+
+    // legend counts (days of leave within shown month, per person)
+    var counts = {};
+    PEOPLE.forEach(function(p){ counts[p]=0; });
+    Object.keys(dayMap).forEach(function(k){
+      var d = parseKey(k);
+      if (d.getFullYear()===view.y && d.getMonth()===view.m){
+        var seen = {};
+        dayMap[k].forEach(function(e){
+          if (!seen[e.name]){ seen[e.name]=1; counts[e.name]++; }
+        });
+      }
+    });
+    $("legend").innerHTML = PEOPLE.map(function(p,i){
+      return '<div class="person"><span class="dot" style="background:var('+PCOLOR[i]+')"></span>'
+        + '<b>'+p+'</b><span class="cnt">本月 <em class="num">'+counts[p]+'</em> 天</span></div>';
+    }).join("");
+
+    // grid
+    var first = new Date(view.y, view.m, 1);
+    var startOffset = first.getDay();
+    var gridStart = new Date(view.y, view.m, 1 - startOffset);
+    var cellCount = 42;
+    var lastRow = new Date(gridStart); lastRow.setDate(gridStart.getDate()+35);
+    if (lastRow.getMonth() !== view.m && lastRow.getDate() <= 7) cellCount = 35;
+
+    var tKey = key(today.getFullYear(), today.getMonth(), today.getDate());
+    var html = "";
+    for (var i=0; i<cellCount; i++){
+      var d = new Date(gridStart); d.setDate(gridStart.getDate()+i);
+      var k = key(d.getFullYear(), d.getMonth(), d.getDate());
+      var cls = "day";
+      if (d.getMonth() !== view.m) cls += " out";
+      if (d.getDay()===0) cls += " sun";
+      if (d.getDay()===6) cls += " sat";
+      if (k === tKey) cls += " today";
+      var list = dayMap[k] || [];
+      var uniq = {};
+      list.forEach(function(e){ uniq[e.name] = 1; });
+      var nPeople = Object.keys(uniq).length;
+      if (nPeople >= 5) cls += " crit";
+      else if (nPeople >= 3) cls += " warn";
+      var maxShow = 4;
+      var chips = list.slice(0, maxShow).map(function(e){
+        var c = colorOf(e.name);
+        var label = compShort(e) || e.type;
+        return '<span class="chip" style="background:color-mix(in srgb, '+c+' 13%, transparent); color:'+c+'">'
+          + '<span class="cdot" style="background:'+c+'"></span><b>'+esc(e.name)+'</b><small>'+esc(label)+'</small></span>';
+      }).join("");
+      if (list.length > maxShow) chips += '<span class="more">還有 '+(list.length-maxShow)+' 筆…</span>';
+      html += '<div class="'+cls+'" data-date="'+k+'" role="button" tabindex="0" aria-label="'+k+'">'
+        + '<span class="dnum num">'+d.getDate()+'</span><div class="chips">'+chips+'</div></div>';
+    }
+    $("grid").innerHTML = html;
+
+    if (openDate) renderModalList();
+  }
+
+  // ── modal ──
+  function openModal(dateStr){
+    openDate = dateStr;
+    confirmId = null;
+    var d = parseKey(dateStr);
+    $("mTitle").textContent = (d.getMonth()+1) + "月" + d.getDate() + "日";
+    $("mWd").textContent = "星期" + WD[d.getDay()];
+    $("fStart").value = dateStr;
+    $("fEnd").value = dateStr;
+    $("fErr").textContent = "";
+    updateTypeFields();
+    renderModalList();
+    $("overlay").hidden = false;
+    $("fName").focus();
+  }
+  function closeModal(){ $("overlay").hidden = true; openDate = null; }
+
+  var confirmId = null;
+  function renderModalList(){
+    var dayMap = buildDayMap();
+    var list = dayMap[openDate] || [];
+    if (!list.length){
+      $("mList").innerHTML = '<p class="m-empty">這天還沒有人排休。</p>';
+      return;
+    }
+    var od = parseKey(openDate);
+    var odTxt = (od.getMonth()+1) + "/" + od.getDate();
+    $("mList").innerHTML = list.map(function(e){
+      var c = colorOf(e.name);
+      var isRange = e.start !== e.end;
+      var range = !isRange ? "" :
+        e.start.slice(5).replace("-","/") + " – " + e.end.slice(5).replace("-","/");
+      if (e.compDate){
+        var cd = parseKey(e.compDate);
+        var compTxt = "補 " + (cd.getMonth()+1) + "/" + cd.getDate() + "（" + WD[cd.getDay()] + "）";
+        range = range ? compTxt + "・" + range : compTxt;
+      }
+      var tail;
+      if (confirmId === e.id){
+        tail = '<div class="del-opts">'
+          + (isRange
+              ? '<button class="mini-btn dangerous" data-delone="'+e.id+'">只刪 '+odTxt+' 這天</button>'
+                + '<button class="mini-btn dangerous" data-delall="'+e.id+'">刪除整段</button>'
+              : '<button class="mini-btn dangerous" data-delall="'+e.id+'">確認刪除</button>')
+          + '<button class="mini-btn" data-cancel="1">取消</button></div>';
+      } else {
+        tail = '<button class="chip-x" data-del="'+e.id+'" aria-label="刪除">✕</button>';
+      }
+      return '<div class="entry"><span class="cdot" style="background:'+c+'"></span>'
+        + '<b>'+esc(e.name)+'</b>'
+        + '<span class="tag" style="background:color-mix(in srgb, '+c+' 14%, transparent); color:'+c+'">'+esc(e.type)+'</span>'
+        + '<span class="range num">'+range+'</span>'
+        + tail + '</div>';
+    }).join("");
+  }
+
+  // ── data ops ──
+  function persist(){
+    if (!storageOK) return;
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(entries)); }
+    catch(e){ /* storage full or blocked — keep working in memory */ }
+  }
+  function addEntry(data){
+    var id = "e" + Date.now() + "-" + Math.floor(Math.random()*1e4);
+    entries[id] = data;
+    persist();
+    render();
+  }
+  function deleteEntry(id){
+    delete entries[id];
+    persist();
+    render();
+  }
+  function addDaysKey(k, n){
+    var d = parseKey(k); d.setDate(d.getDate()+n);
+    return key(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  // 從區間中只刪除某一天：頭尾直接縮短，中間則拆成兩段
+  function deleteOneDay(id, dayKey){
+    var e = entries[id];
+    if (!e) return;
+    var start = e.start, end = e.end || e.start;
+    if (start === end){ deleteEntry(id); return; }
+    if (dayKey === start){
+      e.start = addDaysKey(dayKey, 1);
+    } else if (dayKey === end){
+      e.end = addDaysKey(dayKey, -1);
+    } else {
+      var tail = { name:e.name, type:e.type, start:addDaysKey(dayKey,1), end:end, createdAt:new Date().toISOString() };
+      if (e.compDate) tail.compDate = e.compDate;
+      e.end = addDaysKey(dayKey, -1);
+      entries["e" + Date.now() + "-" + Math.floor(Math.random()*1e4)] = tail;
+    }
+    persist();
+    render();
+  }
+
+  // ── events ──
+  // ── year/month picker ──
+  var pickerYear = view.y;
+  function renderPicker(){
+    $("mpYear").textContent = pickerYear + " 年";
+    var html = "";
+    for (var i=0; i<12; i++){
+      var cls = "";
+      if (pickerYear === view.y && i === view.m) cls = "cur";
+      else if (pickerYear === today.getFullYear() && i === today.getMonth()) cls = "now";
+      html += '<button class="'+cls+'" data-m="'+i+'">'+(i+1)+'月</button>';
+    }
+    $("mpGrid").innerHTML = html;
+  }
+  function openPicker(){
+    pickerYear = view.y;
+    renderPicker();
+    $("mpick").hidden = false;
+    $("mLabel").setAttribute("aria-expanded","true");
+  }
+  function closePicker(){
+    $("mpick").hidden = true;
+    $("mLabel").setAttribute("aria-expanded","false");
+  }
+  $("mLabel").addEventListener("click", function(ev){
+    ev.stopPropagation();
+    if ($("mpick").hidden) openPicker(); else closePicker();
+  });
+  $("mpPrev").addEventListener("click", function(){ pickerYear--; renderPicker(); });
+  $("mpNext").addEventListener("click", function(){ pickerYear++; renderPicker(); });
+  $("mpGrid").addEventListener("click", function(ev){
+    var btn = ev.target.closest("[data-m]");
+    if (!btn) return;
+    view = { y: pickerYear, m: +btn.getAttribute("data-m") };
+    closePicker();
+    render();
+  });
+  $("mpick").addEventListener("click", function(ev){ ev.stopPropagation(); });
+  document.addEventListener("click", function(){
+    if (!$("mpick").hidden) closePicker();
+  });
+
+  $("prevBtn").addEventListener("click", function(){ shiftMonth(-1); });
+  $("nextBtn").addEventListener("click", function(){ shiftMonth(1); });
+  $("todayBtn").addEventListener("click", function(){
+    view = { y: today.getFullYear(), m: today.getMonth() }; render();
+  });
+  function shiftMonth(n){
+    var d = new Date(view.y, view.m + n, 1);
+    view = { y: d.getFullYear(), m: d.getMonth() }; render();
+  }
+
+  $("grid").addEventListener("click", function(ev){
+    var cell = ev.target.closest(".day");
+    if (cell) openModal(cell.getAttribute("data-date"));
+  });
+  $("grid").addEventListener("keydown", function(ev){
+    if (ev.key === "Enter" || ev.key === " "){
+      var cell = ev.target.closest(".day");
+      if (cell){ ev.preventDefault(); openModal(cell.getAttribute("data-date")); }
+    }
+  });
+
+  $("mClose").addEventListener("click", closeModal);
+  $("overlay").addEventListener("click", function(ev){ if (ev.target === $("overlay")) closeModal(); });
+  document.addEventListener("keydown", function(ev){
+    if (ev.key !== "Escape") return;
+    if (!$("mpick").hidden) closePicker();
+    else if (openDate) closeModal();
+  });
+
+  // delete: single entries confirm; range entries offer "just this day" vs "whole range"
+  $("mList").addEventListener("click", function(ev){
+    var t = ev.target.closest("[data-del],[data-delone],[data-delall],[data-cancel]");
+    if (!t) return;
+    if (t.hasAttribute("data-del")){
+      confirmId = t.getAttribute("data-del");
+      renderModalList();
+    } else if (t.hasAttribute("data-delone")){
+      var id1 = t.getAttribute("data-delone");
+      confirmId = null;
+      deleteOneDay(id1, openDate);
+    } else if (t.hasAttribute("data-delall")){
+      var id2 = t.getAttribute("data-delall");
+      confirmId = null;
+      deleteEntry(id2);
+    } else {
+      confirmId = null;
+      renderModalList();
+    }
+  });
+
+  // segmented single / range
+  function setRangeMode(on){
+    rangeMode = on;
+    $("segSingle").classList.toggle("on", !on);
+    $("segRange").classList.toggle("on", on);
+    $("fEnd").hidden = !on;
+    $("dates").classList.toggle("single", !on);
+  }
+  $("segSingle").addEventListener("click", function(){ setRangeMode(false); });
+  $("segRange").addEventListener("click", function(){ setRangeMode(true); });
+
+  function prevWeekday(fromKey, wd){
+    var d = parseKey(fromKey);
+    var guard = 0;
+    while (d.getDay() !== wd && guard++ < 7) d.setDate(d.getDate()-1);
+    return key(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  function updateTypeFields(){
+    var t = $("fType").value;
+    $("fCustom").hidden = t !== "__custom";
+    var comp = COMP[t];
+    $("compWrap").hidden = !comp;
+    if (comp){
+      $("compLabel").textContent = "補的日期（星期" + WD[comp.wd] + "）";
+      var base = $("fStart").value || (openDate || key(today.getFullYear(), today.getMonth(), today.getDate()));
+      $("fComp").value = prevWeekday(base, comp.wd);
+    }
+  }
+  $("fType").addEventListener("change", function(){
+    updateTypeFields();
+    if (!$("fCustom").hidden) $("fCustom").focus();
+  });
+
+  PEOPLE.forEach(function(p){
+    var o = document.createElement("option");
+    o.value = p; o.textContent = p;
+    $("fName").appendChild(o);
+  });
+
+  $("fSubmit").addEventListener("click", function(){
+    var name = $("fName").value;
+    var type = $("fType").value;
+    if (type === "__custom") type = $("fCustom").value.trim();
+    var start = $("fStart").value;
+    var end = rangeMode ? $("fEnd").value : start;
+    var comp = COMP[$("fType").value];
+    var compDate = comp ? $("fComp").value : null;
+    var err = "";
+    if (!name) err = "請選擇姓名。";
+    else if (!type) err = "請輸入自訂假別名稱。";
+    else if (!start || !end) err = "請選擇日期。";
+    else if (end < start) err = "結束日期不可早於開始日期。";
+    else if (comp && !compDate) err = "請選擇要補的日期。";
+    else if (comp && parseKey(compDate).getDay() !== comp.wd)
+      err = "補的日期必須是星期" + WD[comp.wd] + "。";
+    else {
+      var span = (parseKey(end) - parseKey(start)) / 86400000;
+      if (span > 60) err = "區間最長 60 天，請分段新增。";
+    }
+    $("fErr").textContent = err;
+    if (err) return;
+    var data = { name:name, type:type, start:start, end:end, createdAt: new Date().toISOString() };
+    if (compDate) data.compDate = compDate;
+    addEntry(data);
+    $("fErr").textContent = "";
+    $("fType").value = "年假"; $("fCustom").value = ""; $("fCustom").hidden = true;
+    $("compWrap").hidden = true;
+  });
+
+  // ── sync ──
+  function setSync(state, text){
+    var el = $("sync");
+    el.className = "sync " + state;
+    $("syncTxt").textContent = text;
+  }
+  // ── storage init ──
+  try{
+    var probe = "__probe__" + Date.now();
+    localStorage.setItem(probe, "1");
+    localStorage.removeItem(probe);
+    storageOK = true;
+  }catch(e){ storageOK = false; }
+
+  if (storageOK){
+    try{
+      var saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+      if (saved && typeof saved === "object") entries = saved;
+      // 舊版名稱轉換：補休假日 → 補休息日
+      Object.keys(entries).forEach(function(id){
+        if (entries[id] && entries[id].type === "補休假日") entries[id].type = "補休息日";
+      });
+    }catch(e){ entries = {}; }
+    setSync("ok", "已儲存於此瀏覽器");
+    // keep multiple open tabs in sync
+    window.addEventListener("storage", function(ev){
+      if (ev.key !== STORE_KEY) return;
+      try{ entries = JSON.parse(ev.newValue || "{}") || {}; }catch(e){ return; }
+      render();
+    });
+  } else {
+    $("banner").hidden = false;
+    setSync("local", "暫存模式");
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
