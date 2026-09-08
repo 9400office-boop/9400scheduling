@@ -132,6 +132,17 @@
   .day.sun .dnum, .day.sat .dnum{color:var(--sun)}
   .day.out.sun .dnum,.day.out.sat .dnum{color:var(--dim)}
   .day.today .dnum{background:var(--accent); color:var(--accent-ink); font-weight:700}
+  .drow{display:flex; align-items:center; gap:5px; min-width:0}
+  .hname{
+    font-size:10.5px; font-weight:500; color:var(--sun); min-width:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .hname.wk{color:var(--muted)}
+  .day.hol .dnum{color:var(--sun); font-weight:700}
+  .day.out.hol .dnum{color:var(--dim)}
+  .day.out .hname{color:var(--dim)}
+  .day.mkup .dnum{color:var(--ink); font-weight:600}
+  .day.out.mkup .dnum{color:var(--dim)}
   .day.warn, .day.warn.out{background:var(--warn-bg)}
   .day.crit, .day.crit.out{background:var(--crit-bg)}
   .day.warn:hover{background:color-mix(in srgb, var(--warn-bg) 90%, var(--ink))}
@@ -227,6 +238,7 @@
     .brand p{display:none}
     .monthnav .label{font-size:16px; min-width:104px}
     .day{min-height:78px; padding:5px 4px 6px}
+    .hname{font-size:9px}
     .chip{padding:2px 5px; font-size:10.5px; gap:4px}
     .chip small{display:none}
     .person{padding:5px 10px; font-size:12.5px}
@@ -316,6 +328,77 @@
   var PCOLOR = ["--p1","--p2","--p3","--p4","--p5","--p6"];
   var WD = ["日","一","二","三","四","五","六"];
   var COMP = { "補休息日": {wd:6, short:"補休"}, "補例假日": {wd:0, short:"補例"} };
+
+  // ── 國定假日（行政院人事行政總處公告之政府行政機關辦公日曆表）──
+  var HOLIDAYS = {
+    // 114年 (2025)
+    "2025-01-01":"元旦","2025-01-27":"小年夜","2025-01-28":"除夕",
+    "2025-01-29":"春節","2025-01-30":"春節","2025-01-31":"春節",
+    "2025-02-28":"和平紀念日","2025-04-03":"補假","2025-04-04":"兒童節/清明",
+    "2025-05-30":"補假","2025-05-31":"端午節","2025-09-28":"教師節","2025-09-29":"補假",
+    "2025-10-06":"中秋節","2025-10-10":"國慶日","2025-10-24":"補假","2025-10-25":"光復節",
+    "2025-12-25":"行憲紀念日",
+    // 115年 (2026)
+    "2026-01-01":"元旦","2026-02-15":"小年夜","2026-02-16":"除夕",
+    "2026-02-17":"春節","2026-02-18":"春節","2026-02-19":"春節","2026-02-20":"補假",
+    "2026-02-27":"補假","2026-02-28":"和平紀念日",
+    "2026-04-03":"補假","2026-04-04":"兒童節","2026-04-05":"清明節","2026-04-06":"補假",
+    "2026-05-01":"勞動節","2026-06-19":"端午節",
+    "2026-09-25":"中秋節","2026-09-28":"教師節",
+    "2026-10-09":"補假","2026-10-10":"國慶日","2026-10-25":"光復節","2026-10-26":"補假",
+    "2026-12-25":"行憲紀念日",
+    // 116年 (2027)
+    "2027-01-01":"元旦","2027-02-04":"小年夜","2027-02-05":"除夕",
+    "2027-02-06":"春節","2027-02-07":"春節","2027-02-08":"春節",
+    "2027-02-09":"補假","2027-02-10":"補假",
+    "2027-02-28":"和平紀念日","2027-03-01":"補假",
+    "2027-04-04":"兒童節","2027-04-05":"清明節","2027-04-06":"補假",
+    "2027-04-30":"補假","2027-05-01":"勞動節","2027-06-09":"端午節",
+    "2027-09-15":"中秋節","2027-09-28":"教師節",
+    "2027-10-10":"國慶日","2027-10-11":"補假","2027-10-25":"光復節",
+    "2027-12-24":"補假","2027-12-25":"行憲紀念日","2027-12-31":"補假"
+  };
+  var WORKDAYS = { "2025-02-08":"補班" };  // 補行上班日（115年起全面取消週六補班）
+  var EMBEDDED_YEARS = {2025:1, 2026:1, 2027:1};
+  var fetchedYears = {};
+  var HOLIDAY_SHORT = {
+    "開國紀念日":"元旦","農曆除夕":"除夕","臺灣光復暨金門古寧頭大捷紀念日":"光復節",
+    "孔子誕辰紀念日/教師節":"教師節","孔子誕辰紀念日":"教師節","兒童節及民族掃墓節":"兒童節/清明"
+  };
+  // 其他年份：自動從線上台灣行事曆資料補上（離線時略過）
+  function loadYearHolidays(y){
+    if (y < 2017 || EMBEDDED_YEARS[y] || fetchedYears[y]) return;
+    fetchedYears[y] = 1;
+    var cacheKey = "tw-holidays-" + y;
+    function apply(arr){
+      var found = false;
+      arr.forEach(function(d){
+        if (!d || !d.description || !d.date) return;
+        var k = d.date.slice(0,4) + "-" + d.date.slice(4,6) + "-" + d.date.slice(6,8);
+        if (d.isHoliday) HOLIDAYS[k] = HOLIDAY_SHORT[d.description] || d.description;
+        else WORKDAYS[k] = "補班";
+        found = true;
+      });
+      if (found) render();
+      return found;
+    }
+    try{
+      var cached = localStorage.getItem(cacheKey);
+      if (cached){ apply(JSON.parse(cached)); return; }
+    }catch(e){}
+    try{
+      fetch("https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/" + y + ".json")
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(arr){
+          if (!arr) return;
+          var slim = arr.filter(function(d){ return d && d.description; });
+          if (apply(slim)){
+            try{ localStorage.setItem(cacheKey, JSON.stringify(slim)); }catch(e){}
+          }
+        })
+        .catch(function(){});
+    }catch(e){}
+  }
   function compShort(e){
     if (!e.compDate || !COMP[e.type]) return null;
     var d = parseKey(e.compDate);
@@ -366,6 +449,9 @@
 
   // ── render ──
   function render(){
+    loadYearHolidays(view.y);
+    if (view.m === 0) loadYearHolidays(view.y - 1);
+    if (view.m === 11) loadYearHolidays(view.y + 1);
     var dayMap = buildDayMap();
     $("mLabel").textContent = view.y + "年 " + (view.m+1) + "月";
 
@@ -410,6 +496,9 @@
       var nPeople = Object.keys(uniq).length;
       if (nPeople >= 5) cls += " crit";
       else if (nPeople >= 3) cls += " warn";
+      var hol = HOLIDAYS[k], wkd = WORKDAYS[k];
+      if (hol) cls += " hol";
+      else if (wkd) cls += " mkup";
       var maxShow = 4;
       var chips = list.slice(0, maxShow).map(function(e){
         var c = colorOf(e.name);
@@ -418,8 +507,11 @@
           + '<span class="cdot" style="background:'+c+'"></span><b>'+esc(e.name)+'</b><small>'+esc(label)+'</small></span>';
       }).join("");
       if (list.length > maxShow) chips += '<span class="more">還有 '+(list.length-maxShow)+' 筆…</span>';
+      var hname = hol ? '<span class="hname">'+esc(hol)+'</span>'
+                : wkd ? '<span class="hname wk">補班</span>' : '';
       html += '<div class="'+cls+'" data-date="'+k+'" role="button" tabindex="0" aria-label="'+k+'">'
-        + '<span class="dnum num">'+d.getDate()+'</span><div class="chips">'+chips+'</div></div>';
+        + '<div class="drow"><span class="dnum num">'+d.getDate()+'</span>'+hname+'</div>'
+        + '<div class="chips">'+chips+'</div></div>';
     }
     $("grid").innerHTML = html;
 
@@ -432,7 +524,9 @@
     confirmId = null;
     var d = parseKey(dateStr);
     $("mTitle").textContent = (d.getMonth()+1) + "月" + d.getDate() + "日";
-    $("mWd").textContent = "星期" + WD[d.getDay()];
+    var extra = HOLIDAYS[dateStr] ? "・" + HOLIDAYS[dateStr]
+              : (WORKDAYS[dateStr] ? "・補行上班" : "");
+    $("mWd").textContent = "星期" + WD[d.getDay()] + extra;
     $("fStart").value = dateStr;
     $("fEnd").value = dateStr;
     $("fErr").textContent = "";
