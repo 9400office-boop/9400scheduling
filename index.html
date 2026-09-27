@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>排休月曆</title>
+<title>深耕辦公室排班系統</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700&display=swap">
 <style>
   html{color-scheme:light dark}
@@ -152,6 +152,7 @@
     display:flex; align-items:center; gap:5px; padding:2.5px 7px; border-radius:7px;
     font-size:12px; line-height:1.35; white-space:nowrap; overflow:hidden;
   }
+  .chip.shift{background:transparent; padding:1.5px 6px}
   .chip .cdot{width:6px; height:6px; border-radius:50%; flex:none}
   .chip b{font-weight:600}
   .chip small{font-size:10.5px; opacity:.75; overflow:hidden; text-overflow:ellipsis}
@@ -214,11 +215,14 @@
   }
   select:focus,input:focus{outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent}
   input[type="date"]{color-scheme:light dark}
-  .seg{display:grid; grid-template-columns:1fr 1fr; gap:4px; background:var(--surface2); padding:4px; border-radius:11px}
+  .seg{display:flex; gap:4px; background:var(--surface2); padding:4px; border-radius:11px}
   .seg button{
-    padding:7px 0; border:none; border-radius:8px; background:transparent; color:var(--muted);
+    flex:1; padding:7px 0; border:none; border-radius:8px; background:transparent; color:var(--muted);
     font-size:13.5px; font-weight:500; cursor:pointer;
   }
+  .seg.mode{margin-bottom:2px}
+  .seg.mode button.on{color:var(--accent)}
+  .m-hint{font-size:12px; color:var(--muted); margin:8px 0 0; line-height:1.5}
   .seg button.on{background:var(--surface); color:var(--ink); font-weight:700; box-shadow:0 1px 4px rgba(15,20,35,.12)}
   .dates{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .dates.single{grid-template-columns:1fr}
@@ -250,8 +254,8 @@
 <div class="app">
   <header>
     <div class="brand">
-      <h1>排休月曆<span class="sync" id="sync"><i></i><span id="syncTxt">載入中…</span></span></h1>
-      <p>點選日期即可查看與安排當天排休</p>
+      <h1>深耕辦公室排班系統<span class="sync" id="sync"><i></i><span id="syncTxt">載入中…</span></span></h1>
+      <p>點選日期即可安排排班與排休</p>
     </div>
     <div class="monthnav">
       <button class="navbtn" id="prevBtn" aria-label="上個月">‹</button>
@@ -289,33 +293,50 @@
     </div>
     <div id="mList" class="m-list"></div>
     <hr class="m-divider">
+    <div class="seg mode" role="tablist">
+      <button id="modeLeave" class="on">排休</button>
+      <button id="modeShift">排班</button>
+    </div>
     <label class="f-label" for="fName">姓名</label>
     <select id="fName">
       <option value="" selected disabled>請選擇姓名</option>
     </select>
-    <label class="f-label" for="fType">假別</label>
-    <select id="fType">
-      <option value="年假">年假</option>
-      <option value="OFF">OFF</option>
-      <option value="公假">公假</option>
-      <option value="補休息日">補休息日（星期六）</option>
-      <option value="補例假日">補例假日（星期日）</option>
-      <option value="__custom">自訂假別…</option>
-    </select>
-    <input type="text" id="fCustom" placeholder="輸入假別名稱（例如：補休）" maxlength="10" hidden style="margin-top:8px">
-    <div id="compWrap" hidden>
-      <label class="f-label" for="fComp" id="compLabel">補的日期</label>
-      <input type="date" id="fComp">
+    <div id="leaveFields">
+      <label class="f-label" for="fType">假別</label>
+      <select id="fType">
+        <option value="年假">年假</option>
+        <option value="OFF">OFF</option>
+        <option value="公假">公假</option>
+        <option value="補休息日">補休息日（星期六）</option>
+        <option value="補例假日">補例假日（星期日）</option>
+        <option value="__custom">自訂假別…</option>
+      </select>
+      <input type="text" id="fCustom" placeholder="輸入假別名稱（例如：補休）" maxlength="10" hidden style="margin-top:8px">
+      <div id="compWrap" hidden>
+        <label class="f-label" for="fComp" id="compLabel">補的日期</label>
+        <input type="date" id="fComp">
+      </div>
+    </div>
+    <div id="shiftFields" hidden>
+      <label class="f-label" for="sType">上班時段</label>
+      <select id="sType">
+        <option value="8:00-5:00">8:00–5:00</option>
+        <option value="8:30-5:30">8:30–5:30</option>
+        <option value="__custom">自訂時段…</option>
+      </select>
+      <input type="text" id="sCustom" placeholder="輸入時段（例如 9:00-6:00）" maxlength="20" hidden style="margin-top:8px">
     </div>
     <label class="f-label">日期</label>
     <div class="seg" role="tablist">
       <button id="segSingle" class="on">單日</button>
       <button id="segRange">區間</button>
+      <button id="segMonth" hidden>整月</button>
     </div>
     <div class="dates single" id="dates" style="margin-top:8px">
       <input type="date" id="fStart" aria-label="開始日期">
       <input type="date" id="fEnd" aria-label="結束日期" hidden>
     </div>
+    <p class="m-hint" id="monthHint" hidden></p>
     <p class="f-err" id="fErr"></p>
     <button class="submit" id="fSubmit">新增排休</button>
   </div>
@@ -411,7 +432,8 @@
   var today = new Date();
   var view = { y: today.getFullYear(), m: today.getMonth() };  // m: 0-11
   var openDate = null;       // "YYYY-MM-DD" of open modal
-  var rangeMode = false;
+  var dateMode = "single";   // single | range | month
+  var formMode = "leave";    // leave | shift
 
   var $ = function(id){ return document.getElementById(id); };
 
@@ -433,16 +455,27 @@
     var map = {};
     Object.keys(entries).forEach(function(id){
       var e = entries[id];
-      if (!e || !e.start) return;
-      var d = parseKey(e.start), end = parseKey(e.end || e.start), guard = 0;
-      while (d <= end && guard++ < 90){
-        var k = key(d.getFullYear(), d.getMonth(), d.getDate());
-        (map[k] = map[k] || []).push({id:id, name:e.name, type:e.type, compDate:e.compDate||null, start:e.start, end:e.end||e.start});
-        d.setDate(d.getDate()+1);
+      if (!e) return;
+      var item = {
+        id:id, name:e.name, kind:e.kind || "leave", type:e.type, shift:e.shift,
+        compDate:e.compDate||null, start:e.start, end:e.end||e.start, days:e.days||null
+      };
+      if (e.days && e.days.length){
+        e.days.forEach(function(k){ (map[k] = map[k] || []).push(item); });
+      } else if (e.start){
+        var d = parseKey(e.start), end = parseKey(e.end || e.start), guard = 0;
+        while (d <= end && guard++ < 90){
+          var k = key(d.getFullYear(), d.getMonth(), d.getDate());
+          (map[k] = map[k] || []).push(item);
+          d.setDate(d.getDate()+1);
+        }
       }
     });
     Object.keys(map).forEach(function(k){
-      map[k].sort(function(a,b){ return PEOPLE.indexOf(a.name) - PEOPLE.indexOf(b.name); });
+      map[k].sort(function(a,b){
+        if (a.kind !== b.kind) return a.kind === "leave" ? -1 : 1;
+        return PEOPLE.indexOf(a.name) - PEOPLE.indexOf(b.name);
+      });
     });
     return map;
   }
@@ -455,21 +488,25 @@
     var dayMap = buildDayMap();
     $("mLabel").textContent = view.y + "年 " + (view.m+1) + "月";
 
-    // legend counts (days of leave within shown month, per person)
-    var counts = {};
-    PEOPLE.forEach(function(p){ counts[p]=0; });
+    // legend counts (leave days & shift days within shown month, per person)
+    var countsL = {}, countsS = {};
+    PEOPLE.forEach(function(p){ countsL[p]=0; countsS[p]=0; });
     Object.keys(dayMap).forEach(function(k){
       var d = parseKey(k);
       if (d.getFullYear()===view.y && d.getMonth()===view.m){
-        var seen = {};
+        var seenL = {}, seenS = {};
         dayMap[k].forEach(function(e){
-          if (!seen[e.name]){ seen[e.name]=1; counts[e.name]++; }
+          if (e.kind === "shift"){
+            if (!seenS[e.name]){ seenS[e.name]=1; countsS[e.name]++; }
+          } else {
+            if (!seenL[e.name]){ seenL[e.name]=1; countsL[e.name]++; }
+          }
         });
       }
     });
     $("legend").innerHTML = PEOPLE.map(function(p,i){
       return '<div class="person"><span class="dot" style="background:var('+PCOLOR[i]+')"></span>'
-        + '<b>'+p+'</b><span class="cnt">本月 <em class="num">'+counts[p]+'</em> 天</span></div>';
+        + '<b>'+p+'</b><span class="cnt">休 <em class="num">'+countsL[p]+'</em>・班 <em class="num">'+countsS[p]+'</em></span></div>';
     }).join("");
 
     // grid
@@ -492,7 +529,7 @@
       if (k === tKey) cls += " today";
       var list = dayMap[k] || [];
       var uniq = {};
-      list.forEach(function(e){ uniq[e.name] = 1; });
+      list.forEach(function(e){ if (e.kind !== "shift") uniq[e.name] = 1; });
       var nPeople = Object.keys(uniq).length;
       if (nPeople >= 5) cls += " crit";
       else if (nPeople >= 3) cls += " warn";
@@ -502,6 +539,10 @@
       var maxShow = 4;
       var chips = list.slice(0, maxShow).map(function(e){
         var c = colorOf(e.name);
+        if (e.kind === "shift"){
+          return '<span class="chip shift" style="border:1px solid color-mix(in srgb, '+c+' 45%, transparent); color:'+c+'">'
+            + '<span class="cdot" style="background:'+c+'"></span><b>'+esc(e.name)+'</b><small>'+esc(e.shift||"")+'</small></span>';
+        }
         var label = compShort(e) || e.type;
         return '<span class="chip" style="background:color-mix(in srgb, '+c+' 13%, transparent); color:'+c+'">'
           + '<span class="cdot" style="background:'+c+'"></span><b>'+esc(e.name)+'</b><small>'+esc(label)+'</small></span>';
@@ -530,6 +571,7 @@
     $("fStart").value = dateStr;
     $("fEnd").value = dateStr;
     $("fErr").textContent = "";
+    setDateMode("single");
     updateTypeFields();
     renderModalList();
     $("overlay").hidden = false;
@@ -549,10 +591,15 @@
     var odTxt = (od.getMonth()+1) + "/" + od.getDate();
     $("mList").innerHTML = list.map(function(e){
       var c = colorOf(e.name);
-      var isRange = e.start !== e.end;
-      var range = !isRange ? "" :
-        e.start.slice(5).replace("-","/") + " – " + e.end.slice(5).replace("-","/");
-      if (e.compDate){
+      var isShift = e.kind === "shift";
+      var isMulti = e.days ? e.days.length > 1 : e.start !== e.end;
+      var range = "";
+      if (e.days){
+        if (e.days.length > 1) range = "整月・" + e.days.length + " 天";
+      } else if (e.start !== e.end){
+        range = e.start.slice(5).replace("-","/") + " – " + e.end.slice(5).replace("-","/");
+      }
+      if (!isShift && e.compDate){
         var cd = parseKey(e.compDate);
         var compTxt = "補 " + (cd.getMonth()+1) + "/" + cd.getDate() + "（" + WD[cd.getDay()] + "）";
         range = range ? compTxt + "・" + range : compTxt;
@@ -560,17 +607,19 @@
       var tail;
       if (confirmId === e.id){
         tail = '<div class="del-opts">'
-          + (isRange
+          + (isMulti
               ? '<button class="mini-btn dangerous" data-delone="'+e.id+'">只刪 '+odTxt+' 這天</button>'
-                + '<button class="mini-btn dangerous" data-delall="'+e.id+'">刪除整段</button>'
+                + '<button class="mini-btn dangerous" data-delall="'+e.id+'">'+(e.days?"刪除整月":"刪除整段")+'</button>'
               : '<button class="mini-btn dangerous" data-delall="'+e.id+'">確認刪除</button>')
           + '<button class="mini-btn" data-cancel="1">取消</button></div>';
       } else {
         tail = '<button class="chip-x" data-del="'+e.id+'" aria-label="刪除">✕</button>';
       }
+      var tag = isShift
+        ? '<span class="tag" style="border:1px solid color-mix(in srgb, '+c+' 45%, transparent); color:'+c+'">'+esc(e.shift||"")+'</span>'
+        : '<span class="tag" style="background:color-mix(in srgb, '+c+' 14%, transparent); color:'+c+'">'+esc(e.type)+'</span>';
       return '<div class="entry"><span class="cdot" style="background:'+c+'"></span>'
-        + '<b>'+esc(e.name)+'</b>'
-        + '<span class="tag" style="background:color-mix(in srgb, '+c+' 14%, transparent); color:'+c+'">'+esc(e.type)+'</span>'
+        + '<b>'+esc(e.name)+'</b>' + tag
         + '<span class="range num">'+range+'</span>'
         + tail + '</div>';
     }).join("");
@@ -601,6 +650,14 @@
   function deleteOneDay(id, dayKey){
     var e = entries[id];
     if (!e) return;
+    if (e.days){
+      var idx = e.days.indexOf(dayKey);
+      if (idx >= 0) e.days.splice(idx, 1);
+      if (!e.days.length) delete entries[id];
+      persist();
+      render();
+      return;
+    }
     var start = e.start, end = e.end || e.start;
     if (start === end){ deleteEntry(id); return; }
     if (dayKey === start){
@@ -709,16 +766,64 @@
     }
   });
 
-  // segmented single / range
-  function setRangeMode(on){
-    rangeMode = on;
-    $("segSingle").classList.toggle("on", !on);
-    $("segRange").classList.toggle("on", on);
-    $("fEnd").hidden = !on;
-    $("dates").classList.toggle("single", !on);
+  // form mode: 排休 / 排班
+  function setFormMode(m){
+    formMode = m;
+    $("modeLeave").classList.toggle("on", m === "leave");
+    $("modeShift").classList.toggle("on", m === "shift");
+    $("leaveFields").hidden = m !== "leave";
+    $("shiftFields").hidden = m !== "shift";
+    $("segMonth").hidden = m !== "shift";
+    if (m !== "shift" && dateMode === "month") setDateMode("single");
+    $("fSubmit").textContent = m === "shift" ? "新增排班" : "新增排休";
+    updateMonthHint();
   }
-  $("segSingle").addEventListener("click", function(){ setRangeMode(false); });
-  $("segRange").addEventListener("click", function(){ setRangeMode(true); });
+  $("modeLeave").addEventListener("click", function(){ setFormMode("leave"); });
+  $("modeShift").addEventListener("click", function(){ setFormMode("shift"); });
+  $("sType").addEventListener("change", function(){
+    $("sCustom").hidden = this.value !== "__custom";
+    if (!$("sCustom").hidden) $("sCustom").focus();
+  });
+
+  // date mode: 單日 / 區間 / 整月
+  function setDateMode(m){
+    dateMode = m;
+    $("segSingle").classList.toggle("on", m === "single");
+    $("segRange").classList.toggle("on", m === "range");
+    $("segMonth").classList.toggle("on", m === "month");
+    $("dates").hidden = m === "month";
+    $("fEnd").hidden = m !== "range";
+    $("dates").classList.toggle("single", m !== "range");
+    updateMonthHint();
+  }
+  function updateMonthHint(){
+    var show = formMode === "shift" && dateMode === "month" && openDate;
+    $("monthHint").hidden = !show;
+    if (show){
+      var d = parseKey(openDate);
+      $("monthHint").textContent = "將套用到 " + (d.getMonth()+1) + " 月的所有上班日：自動跳過週末與國定假日（補班日照排），這個人已有排休或排班的日子也會跳過。國定假日要上班請另外點該日單獨排。";
+    }
+  }
+  $("segSingle").addEventListener("click", function(){ setDateMode("single"); });
+  $("segRange").addEventListener("click", function(){ setDateMode("range"); });
+  $("segMonth").addEventListener("click", function(){ setDateMode("month"); });
+
+  // 整月排班可排的上班日
+  function monthWorkdays(y, m, name){
+    var dayMap = buildDayMap();
+    var res = [];
+    var dim = new Date(y, m+1, 0).getDate();
+    for (var d=1; d<=dim; d++){
+      var k = key(y, m, d);
+      if (HOLIDAYS[k]) continue;
+      var wd = new Date(y, m, d).getDay();
+      if ((wd === 0 || wd === 6) && !WORKDAYS[k]) continue;
+      var taken = (dayMap[k] || []).some(function(e){ return e.name === name; });
+      if (taken) continue;
+      res.push(k);
+    }
+    return res;
+  }
 
   function prevWeekday(fromKey, wd){
     var d = parseKey(fromKey);
@@ -750,15 +855,39 @@
 
   $("fSubmit").addEventListener("click", function(){
     var name = $("fName").value;
+    var err = "";
+    if (!name){ $("fErr").textContent = "請選擇姓名。"; return; }
+
+    if (formMode === "shift"){
+      var shift = $("sType").value;
+      if (shift === "__custom") shift = $("sCustom").value.trim();
+      if (!shift){ $("fErr").textContent = "請輸入自訂時段。"; return; }
+      if (dateMode === "month"){
+        var od = parseKey(openDate);
+        var days = monthWorkdays(od.getFullYear(), od.getMonth(), name);
+        if (!days.length){ $("fErr").textContent = "這個月已沒有可排的上班日。"; return; }
+        addEntry({ kind:"shift", name:name, shift:shift, days:days, createdAt: new Date().toISOString() });
+      } else {
+        var s1 = $("fStart").value;
+        var e1 = dateMode === "range" ? $("fEnd").value : s1;
+        if (!s1 || !e1) err = "請選擇日期。";
+        else if (e1 < s1) err = "結束日期不可早於開始日期。";
+        else if ((parseKey(e1) - parseKey(s1)) / 86400000 > 60) err = "區間最長 60 天，請分段新增。";
+        $("fErr").textContent = err;
+        if (err) return;
+        addEntry({ kind:"shift", name:name, shift:shift, start:s1, end:e1, createdAt: new Date().toISOString() });
+      }
+      $("fErr").textContent = "";
+      return;
+    }
+
     var type = $("fType").value;
     if (type === "__custom") type = $("fCustom").value.trim();
     var start = $("fStart").value;
-    var end = rangeMode ? $("fEnd").value : start;
+    var end = dateMode === "range" ? $("fEnd").value : start;
     var comp = COMP[$("fType").value];
     var compDate = comp ? $("fComp").value : null;
-    var err = "";
-    if (!name) err = "請選擇姓名。";
-    else if (!type) err = "請輸入自訂假別名稱。";
+    if (!type) err = "請輸入自訂假別名稱。";
     else if (!start || !end) err = "請選擇日期。";
     else if (end < start) err = "結束日期不可早於開始日期。";
     else if (comp && !compDate) err = "請選擇要補的日期。";
