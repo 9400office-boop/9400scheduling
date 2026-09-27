@@ -350,6 +350,36 @@
   var WD = ["日","一","二","三","四","五","六"];
   var COMP = { "補休息日": {wd:6, short:"補休"}, "補例假日": {wd:0, short:"補例"} };
 
+  // ── 排假分組規則：同組同一天最多 2 人排假 ──
+  var GROUPS = [
+    ["陳乃菁","吳曉琪","余守純"],
+    ["蘇婉淳","楊穎潔","林佩穎"]
+  ];
+  function groupOf(name){
+    for (var i=0; i<GROUPS.length; i++){
+      if (GROUPS[i].indexOf(name) >= 0) return GROUPS[i];
+    }
+    return null;
+  }
+  // 回傳 start..end 之間，同組已有 2 人排假的日期清單
+  function leaveConflicts(name, start, end){
+    var g = groupOf(name);
+    if (!g) return [];
+    var dayMap = buildDayMap();
+    var bad = [];
+    var d = parseKey(start), e = parseKey(end), guard = 0;
+    while (d <= e && guard++ < 90){
+      var k = key(d.getFullYear(), d.getMonth(), d.getDate());
+      var others = {};
+      (dayMap[k] || []).forEach(function(x){
+        if (x.kind !== "shift" && x.name !== name && g.indexOf(x.name) >= 0) others[x.name] = 1;
+      });
+      if (Object.keys(others).length >= 2) bad.push(k);
+      d.setDate(d.getDate()+1);
+    }
+    return bad;
+  }
+
   // ── 國定假日（行政院人事行政總處公告之政府行政機關辦公日曆表）──
   var HOLIDAYS = {
     // 114年 (2025)
@@ -896,6 +926,10 @@
     else {
       var span = (parseKey(end) - parseKey(start)) / 86400000;
       if (span > 60) err = "區間最長 60 天，請分段新增。";
+    }
+    if (!err){
+      var conflicts = leaveConflicts(name, start, end);
+      if (conflicts.length) err = "已有2人排休";
     }
     $("fErr").textContent = err;
     if (err) return;
