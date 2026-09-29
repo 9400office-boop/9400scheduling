@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>排班排休月曆</title>
+<title>深耕辦公室排班系統</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700&display=swap">
 <style>
   html{color-scheme:light dark}
@@ -254,7 +254,7 @@
 <div class="app">
   <header>
     <div class="brand">
-      <h1>排班排休月曆<span class="sync" id="sync"><i></i><span id="syncTxt">載入中…</span></span></h1>
+      <h1>深耕辦公室排班系統<span class="sync" id="sync"><i></i><span id="syncTxt">載入中…</span></span></h1>
       <p>點選日期即可安排排班與排休</p>
     </div>
     <div class="monthnav">
@@ -262,7 +262,7 @@
       <button class="label num" id="mLabel" aria-haspopup="true" aria-expanded="false" title="選擇年月"></button>
       <button class="navbtn" id="nextBtn" aria-label="下個月">›</button>
       <button class="todaybtn" id="todayBtn">今天</button>
-      <button class="navbtn" id="setBtn" aria-label="Google Sheet 連線設定" title="Google Sheet 連線設定">⚙</button>
+      <button class="navbtn" id="setBtn" aria-label="Google Sheet 連線設定" title="Google Sheet 連線設定" hidden>⚙</button>
       <div class="mpick" id="mpick" hidden>
         <div class="mp-year">
           <button class="navbtn" id="mpPrev" aria-label="前一年">‹</button>
@@ -625,7 +625,7 @@
     updateTypeFields();
     renderModalList();
     $("overlay").hidden = false;
-    $("fName").focus();
+    // 不自動聚焦姓名欄，讓使用者自行點選
   }
   function closeModal(){ $("overlay").hidden = true; openDate = null; }
 
