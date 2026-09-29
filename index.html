@@ -472,6 +472,12 @@
         .catch(function(){});
     }catch(e){}
   }
+  // 標籤上的單字記號：依假別顯示
+  var TYPE_CHAR = { "年假":"年", "OFF":"時", "公假":"公", "補休息日":"休", "補例假日":"例" };
+  function kindChar(e){
+    if (e.kind === "shift") return "班";
+    return TYPE_CHAR[e.type] || "自";
+  }
   function compShort(e){
     if (!e.compDate || !COMP[e.type]) return null;
     var d = parseKey(e.compDate);
@@ -564,8 +570,13 @@
       return '<div class="person"><span class="dot" style="background:var('+PCOLOR[i]+')"></span>'
         + '<b>'+p+'</b><span class="cnt">休 <em class="num">'+countsL[p]+'</em>・班 <em class="num">'+countsS[p]+'</em></span></div>';
     }).join("")
-    + '<div class="person hint"><i class="kmark" style="background:var(--muted); border-color:var(--muted); color:var(--surface)">休</i>排休（實心）'
-    + '<i class="kmark ol" style="border-color:var(--muted); color:var(--muted)">班</i>排班（空心）</div>';
+    + '<div class="person hint">實心＝排休：年假<i class="kmark" style="background:var(--muted); border-color:var(--muted); color:var(--surface)">年</i>'
+    + 'OFF<i class="kmark" style="background:var(--muted); border-color:var(--muted); color:var(--surface)">時</i>'
+    + '公假<i class="kmark" style="background:var(--muted); border-color:var(--muted); color:var(--surface)">公</i>'
+    + '補休息<i class="kmark" style="background:var(--muted); border-color:var(--muted); color:var(--surface)">休</i>'
+    + '補例假<i class="kmark" style="background:var(--muted); border-color:var(--muted); color:var(--surface)">例</i>'
+    + '自訂<i class="kmark" style="background:var(--muted); border-color:var(--muted); color:var(--surface)">自</i>'
+    + '　空心<i class="kmark ol" style="border-color:var(--muted); color:var(--muted)">班</i>＝排班</div>';
 
     // grid
     var first = new Date(view.y, view.m, 1);
@@ -599,11 +610,10 @@
         var c = colorOf(e.name);
         if (e.kind === "shift"){
           return '<span class="chip shift" style="border:1px solid color-mix(in srgb, '+c+' 45%, transparent); color:'+c+'">'
-            + '<i class="kmark ol" style="border-color:'+c+'; color:'+c+'">班</i><b>'+esc(e.name)+'</b><small>'+esc(e.shift||"")+'</small></span>';
+            + '<i class="kmark ol" style="border-color:'+c+'; color:'+c+'">班</i><b>'+esc(e.name)+'</b></span>';
         }
-        var label = compShort(e) || e.type;
         return '<span class="chip" style="background:color-mix(in srgb, '+c+' 13%, transparent); color:'+c+'">'
-          + '<i class="kmark" style="background:'+c+'; border-color:'+c+'; color:#fff">休</i><b>'+esc(e.name)+'</b><small>'+esc(label)+'</small></span>';
+          + '<i class="kmark" style="background:'+c+'; border-color:'+c+'; color:#fff">'+kindChar(e)+'</i><b>'+esc(e.name)+'</b></span>';
       }).join("");
       if (list.length > maxShow) chips += '<span class="more">還有 '+(list.length-maxShow)+' 筆…</span>';
       var hname = hol ? '<span class="hname">'+esc(hol)+'</span>'
@@ -678,7 +688,7 @@
         : '<span class="tag" style="background:color-mix(in srgb, '+c+' 14%, transparent); color:'+c+'">'+esc(e.type)+'</span>';
       var kmark = isShift
         ? '<i class="kmark ol" style="border-color:'+c+'; color:'+c+'">班</i>'
-        : '<i class="kmark" style="background:'+c+'; border-color:'+c+'; color:#fff">休</i>';
+        : '<i class="kmark" style="background:'+c+'; border-color:'+c+'; color:#fff">'+kindChar(e)+'</i>';
       return '<div class="entry">' + kmark
         + '<b>'+esc(e.name)+'</b>' + tag
         + '<span class="range num">'+range+'</span>'
