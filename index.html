@@ -682,13 +682,61 @@
       if (entries[id] && entries[id].type === "補休假日") entries[id].type = "補休息日";
     });
   }
+  // 把任何格式的日期字串轉成 YYYY-MM-DD（Google 試算表常把日期轉成別的格式回傳）
+  function normDateStr(v){
+    if (v === null || v === undefined || v === "") return null;
+    var s = String(v).trim();
+    var m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (m) return m[1] + "-" + pad(+m[2]) + "-" + pad(+m[3]);
+    // 例如 "Tue Sep 29 2026 00:00:00 GMT+0800 ..."：直接取字面日期，不做時區換算
+    var MONTHS = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+    var w = s.match(/^[A-Za-z]{3},?\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})/)
+         || s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})/);
+    if (w){
+      var mon = MONTHS[w[1]] || MONTHS[w[2]];
+      var day = MONTHS[w[1]] ? +w[2] : +w[1];
+      var yr  = +w[3];
+      if (mon) return yr + "-" + pad(mon) + "-" + pad(day);
+    }
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) return key(d.getFullYear(), d.getMonth(), d.getDate());
+    return null;
+  }
+  // 伺服器回來的資料先整理過再用，避免格式差異造成整頁空白
+  function sanitizeEntries(raw){
+    var out = {};
+    if (!raw || typeof raw !== "object") return out;
+    Object.keys(raw).forEach(function(id){
+      var e = raw[id];
+      if (!e || typeof e !== "object" || !e.name) return;
+      var n = { kind: e.kind === "shift" ? "shift" : "leave", name: String(e.name) };
+      if (e.type) n.type = String(e.type);
+      if (e.shift) n.shift = String(e.shift);
+      var cd = normDateStr(e.compDate);
+      if (cd) n.compDate = cd;
+      if (e.createdAt) n.createdAt = String(e.createdAt);
+      var ok = false;
+      var s1 = normDateStr(e.start);
+      if (s1){
+        n.start = s1;
+        n.end = normDateStr(e.end) || s1;
+        ok = true;
+      }
+      if (Object.prototype.toString.call(e.days) === "[object Array]"){
+        var days = e.days.map(normDateStr).filter(function(x){ return x; });
+        if (days.length){ n.days = days; ok = true; }
+      }
+      if (ok) out[id] = n;
+    });
+    return out;
+  }
   function cloudGet(){
     if (!API || pendingPosts > 0) return;
     fetch(API)
       .then(function(r){ return r.json(); })
       .then(function(j){
         if (j && j.entries && pendingPosts === 0){
-          entries = j.entries;
+          entries = sanitizeEntries(j.entries);
           normalizeLegacy();
           persist();
           setSync("ok", "已同步 Google Sheet");
@@ -706,7 +754,7 @@
       .then(function(j){
         pendingPosts--;
         if (j && j.entries && pendingPosts === 0){
-          entries = j.entries;
+          entries = sanitizeEntries(j.entries);
           normalizeLegacy();
           persist();
           render();
