@@ -262,6 +262,7 @@
       <button class="label num" id="mLabel" aria-haspopup="true" aria-expanded="false" title="選擇年月"></button>
       <button class="navbtn" id="nextBtn" aria-label="下個月">›</button>
       <button class="todaybtn" id="todayBtn">今天</button>
+      <button class="navbtn" id="setBtn" aria-label="Google Sheet 連線設定" title="Google Sheet 連線設定">⚙</button>
       <div class="mpick" id="mpick" hidden>
         <div class="mp-year">
           <button class="navbtn" id="mpPrev" aria-label="前一年">‹</button>
@@ -282,6 +283,21 @@
       <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
     </div>
     <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div class="overlay" id="setOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="m-head">
+      <h2>Google Sheet 連線</h2>
+      <button class="m-close" id="setClose" aria-label="關閉">✕</button>
+    </div>
+    <p class="m-hint">貼上 Apps Script「網頁應用程式」的網址（以 /exec 結尾）。連線後，每筆排班排休都會即時寫入 Google 試算表，全組共用同一份資料。</p>
+    <label class="f-label" for="apiUrl">網址</label>
+    <input type="text" id="apiUrl" placeholder="https://script.google.com/macros/s/…/exec">
+    <p class="f-err" id="setErr"></p>
+    <button class="submit" id="setSave">儲存並連線</button>
+    <button class="mini-btn" id="setClear" style="width:100%; margin-top:8px">清除連線（改回只存這台電腦）</button>
   </div>
 </div>
 
@@ -457,6 +473,10 @@
   }
 
   var STORE_KEY = "leave-calendar-entries-v1";
+  // Google Sheet 同步：可直接把 Apps Script /exec 網址寫在下面引號內（同仁就不用各自設定）
+  var SHEET_API_URL = "https://script.google.com/macros/s/AKfycbyZCtvAJXr12r31C-YyhJbazSsi3AOEYuZFSF6c267_BBzQRmjrlaRpNNqc6qk80Lly/exec";
+  var API = SHEET_API_URL;
+  try{ API = localStorage.getItem("sheet-api-url") || SHEET_API_URL; }catch(e){}
   var entries = {};          // id -> {name, type, start, end}
   var storageOK = false;
   var today = new Date();
@@ -655,6 +675,53 @@
     }).join("");
   }
 
+  // ── Google Sheet 同步 ──
+  var pendingPosts = 0;
+  function normalizeLegacy(){
+    Object.keys(entries).forEach(function(id){
+      if (entries[id] && entries[id].type === "補休假日") entries[id].type = "補休息日";
+    });
+  }
+  function cloudGet(){
+    if (!API || pendingPosts > 0) return;
+    fetch(API)
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (j && j.entries && pendingPosts === 0){
+          entries = j.entries;
+          normalizeLegacy();
+          persist();
+          setSync("ok", "已同步 Google Sheet");
+          render();
+        }
+      })
+      .catch(function(){ setSync("local", "連不上 Google Sheet，先存這台電腦"); });
+  }
+  function cloudPost(payload){
+    if (!API) return;
+    pendingPosts++;
+    setSync("", "同步中…");
+    fetch(API, { method:"POST", body: JSON.stringify(payload) })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        pendingPosts--;
+        if (j && j.entries && pendingPosts === 0){
+          entries = j.entries;
+          normalizeLegacy();
+          persist();
+          render();
+        }
+        if (pendingPosts === 0) setSync("ok", "已同步 Google Sheet");
+      })
+      .catch(function(){
+        pendingPosts--;
+        setSync("local", "連不上 Google Sheet，這筆先存這台電腦");
+      });
+  }
+  function syncAdd(id){ if (API && entries[id]) cloudPost({action:"add", id:id, entry:entries[id]}); }
+  function syncUpdate(id){ if (API && entries[id]) cloudPost({action:"update", id:id, entry:entries[id]}); }
+  function syncDelete(id){ if (API) cloudPost({action:"delete", id:id}); }
+
   // ── data ops ──
   function persist(){
     if (!storageOK) return;
@@ -666,11 +733,13 @@
     entries[id] = data;
     persist();
     render();
+    syncAdd(id);
   }
   function deleteEntry(id){
     delete entries[id];
     persist();
     render();
+    syncDelete(id);
   }
   function addDaysKey(k, n){
     var d = parseKey(k); d.setDate(d.getDate()+n);
@@ -683,7 +752,8 @@
     if (e.days){
       var idx = e.days.indexOf(dayKey);
       if (idx >= 0) e.days.splice(idx, 1);
-      if (!e.days.length) delete entries[id];
+      if (!e.days.length){ delete entries[id]; syncDelete(id); }
+      else syncUpdate(id);
       persist();
       render();
       return;
@@ -692,13 +762,19 @@
     if (start === end){ deleteEntry(id); return; }
     if (dayKey === start){
       e.start = addDaysKey(dayKey, 1);
+      syncUpdate(id);
     } else if (dayKey === end){
       e.end = addDaysKey(dayKey, -1);
+      syncUpdate(id);
     } else {
-      var tail = { name:e.name, type:e.type, start:addDaysKey(dayKey,1), end:end, createdAt:new Date().toISOString() };
+      var tail = { kind:e.kind, name:e.name, type:e.type, start:addDaysKey(dayKey,1), end:end, createdAt:new Date().toISOString() };
+      if (e.shift) tail.shift = e.shift;
       if (e.compDate) tail.compDate = e.compDate;
       e.end = addDaysKey(dayKey, -1);
-      entries["e" + Date.now() + "-" + Math.floor(Math.random()*1e4)] = tail;
+      var tid = "e" + Date.now() + "-" + Math.floor(Math.random()*1e4);
+      entries[tid] = tail;
+      syncUpdate(id);
+      syncAdd(tid);
     }
     persist();
     render();
@@ -772,6 +848,7 @@
   document.addEventListener("keydown", function(ev){
     if (ev.key !== "Escape") return;
     if (!$("mpick").hidden) closePicker();
+    else if (!$("setOverlay").hidden) $("setOverlay").hidden = true;
     else if (openDate) closeModal();
   });
 
@@ -959,10 +1036,7 @@
     try{
       var saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
       if (saved && typeof saved === "object") entries = saved;
-      // 舊版名稱轉換：補休假日 → 補休息日
-      Object.keys(entries).forEach(function(id){
-        if (entries[id] && entries[id].type === "補休假日") entries[id].type = "補休息日";
-      });
+      normalizeLegacy();
     }catch(e){ entries = {}; }
     setSync("ok", "已儲存於此瀏覽器");
     // keep multiple open tabs in sync
@@ -974,6 +1048,37 @@
   } else {
     $("banner").hidden = false;
     setSync("local", "暫存模式");
+  }
+
+  // ── Google Sheet 連線設定 ──
+  $("setBtn").addEventListener("click", function(){
+    try{ $("apiUrl").value = localStorage.getItem("sheet-api-url") || SHEET_API_URL || ""; }catch(e){}
+    $("setErr").textContent = "";
+    $("setOverlay").hidden = false;
+    $("apiUrl").focus();
+  });
+  function closeSet(){ $("setOverlay").hidden = true; }
+  $("setClose").addEventListener("click", closeSet);
+  $("setOverlay").addEventListener("click", function(ev){ if (ev.target === $("setOverlay")) closeSet(); });
+  $("setSave").addEventListener("click", function(){
+    var u = $("apiUrl").value.trim();
+    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){
+      $("setErr").textContent = "網址格式不對，應為 https://script.google.com/…/exec";
+      return;
+    }
+    try{ localStorage.setItem("sheet-api-url", u); }catch(e){}
+    location.reload();
+  });
+  $("setClear").addEventListener("click", function(){
+    try{ localStorage.removeItem("sheet-api-url"); }catch(e){}
+    location.reload();
+  });
+
+  if (API){
+    setSync("", "同步中…");
+    cloudGet();
+    setInterval(function(){ if (!document.hidden) cloudGet(); }, 90000);
+    window.addEventListener("focus", cloudGet);
   }
 
   render();
